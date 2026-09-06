@@ -69,8 +69,10 @@
 ### 坑 0：一開始的本地建檔被擋
 最初嘗試在本地 `D:\_VoxCPMTest\dnd-inventory` 建 `mkdir` 和 `Write index.html`，使用者拒絕——明確表示要「全在 GitHub 做」。之後全部改走 GitHub REST API。
 
-### 坑 1：這部機的 `gh` 不是 GitHub CLI
-`gh --version` 回 `v0.0.4`，且 `gh auth status` 報 `unrecognized arguments`——這是另一個同名 Python 工具，不是 GitHub CLI。結論：此機沒有 gh，一切遠端操作只能用 `curl` + Personal Access Token 打 REST API。
+### 坑 1：這部機的 `gh` 不是 GitHub CLI（已解決，2026-09-06 更新）
+開發當時 `gh --version` 回 `v0.0.4`，且 `gh auth status` 報 `unrecognized arguments`。後來查明真相：那是 PyPI 上一個撞名的 Python 套件 `gh`（v0.0.4，作者 Daniel Whatmuff，依賴 gitpython，功能只是快速用瀏覽器打開 GitHub repo），於 2023-09-23 被裝到本機（執行 `pip install gh` 時以為裝的是 GitHub CLI），搶佔了 PATH 上的 `gh`。真正的 GitHub CLI 當時並未安裝，所以開發期間一切遠端操作只能用 `curl` + Personal Access Token 打 REST API。
+
+**2026-09-06 更新**：冒牌的 pip 套件已用 `pip uninstall gh` 移除，官方 GitHub CLI 已安裝（`C:\Program Files\GitHub CLI\gh.exe`，`gh --version` 回 `gh version 2.x`）。此機現在已有真正的 gh 可用，日後遠端操作可直接用 gh CLI（認證用 `gh auth login`，或對單次指令設 `GH_TOKEN` 環境變數），不必再手刻 curl；但坑 4 的教訓仍然有效——**含中文／大體積的檔案內容一律不得經 bash 指令通道傳輸**，仍要走 Write 工具＋檔案 body 的流程。
 
 ### 坑 2：第一個 token 權限不足（讀得到、寫不進）
 第一枚 fine-grained token 打 `GET /contents/README.md` 回 200，但 `PUT` 上傳檔案回 **403 "Resource not accessible by personal access token"**。原因：token 的 Contents 權限是 **Read-only**，不是 Read and write。教訓：**token 可讀不代表可寫，兩種權限要分開驗證**（先傳一個 `.permission-test` 小檔確認可寫再開工）。使用者後來改給另一個 repo `DnDBestManager` 的 token，寫入測試通過。
