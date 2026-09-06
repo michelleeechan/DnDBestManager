@@ -116,8 +116,8 @@ function renderMain(){
   html+='<div class="moneyrow">';
   DEN.forEach(function(d){
    html+='<span class="chip" draggable="true" data-den="'+d+'" data-cid="'+c.id+'"><i>'+esc(tden(d))+'</i>'+
-    '<b data-act="moneyEdit" data-cid="'+c.id+'" data-den="'+d+'">'+(m[d]||0)+'</b>'+
     '<button data-act="moneyMinus" data-cid="'+c.id+'" data-den="'+d+'">-</button>'+
+    '<b data-act="moneyEdit" data-cid="'+c.id+'" data-den="'+d+'">'+(m[d]||0)+'</b>'+
     '<button data-act="moneyPlus" data-cid="'+c.id+'" data-den="'+d+'">+</button></span>';
   });
   html+='</div></section>';
@@ -163,6 +163,21 @@ function doExport(){
  a.download='dnd-inventory-'+new Date().toISOString().slice(0,10)+'.json';
  a.click();URL.revokeObjectURL(a.href);
 }
+var lpFired=false,lpTimer=null;
+function lpCancel(){if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}}
+document.addEventListener('pointerdown',function(e){
+ var el=e.target.closest?e.target.closest('[data-act="moneyPlus"],[data-act="moneyMinus"]'):null;
+ if(!el)return;
+ lpFired=false;lpCancel();
+ lpTimer=setTimeout(function(){
+  lpTimer=null;lpFired=true;
+  var n=prompt(t('moneyEditTip'),'1');
+  if(n!==null)applyMoney(el.dataset.cid,el.dataset.den,(el.dataset.act==='moneyPlus'?'+':'-')+String(n));
+ },500);
+});
+document.addEventListener('pointerup',lpCancel);
+document.addEventListener('pointercancel',lpCancel);
+document.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('[data-act="moneyPlus"],[data-act="moneyMinus"]'))e.preventDefault();});
 document.addEventListener('click',function(e){
  var el=e.target.closest?e.target.closest('[data-act]'):null;if(!el)return;
  var act=el.dataset.act,ch=cur(),cid,den,item,n,c;
@@ -183,7 +198,10 @@ document.addEventListener('click',function(e){
  else if(act==='delItem'){ch.items=ch.items.filter(function(i){return i.id!==el.dataset.iid;});save();}
  else if(act==='editItem'){item=findItem(el.dataset.iid);if(item)editItemDialog(item);}
  else if(act==='moneyEdit'){den=el.dataset.den;var m=chMoney(ch,el.dataset.cid);n=prompt(t('moneyEditTip'),m[den]||0);if(n!==null)applyMoney(el.dataset.cid,den,n);}
- else if(act==='moneyPlus'||act==='moneyMinus'){den=el.dataset.den;n=prompt(t('moneyEditTip'),'1');if(n!==null)applyMoney(el.dataset.cid,den,(act==='moneyPlus'?'+':'-')+String(n));}
+ else if(act==='moneyPlus'||act==='moneyMinus'){
+  if(lpFired){lpFired=false;return;}
+  applyMoney(el.dataset.cid,el.dataset.den,act==='moneyPlus'?'+1':'-1');
+ }
  else if(act==='push'){pushData();}
  else if(act==='pull'){pullData();}
  else if(act==='saveSettings'){readSettings();}
